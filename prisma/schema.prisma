@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String  @id @default(uuid())
+  email          String  @unique
+  name           String?
+  profilePicture String?
+  role           String  @default("user")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authProviders AuthProvider[]
+  subscription  Subscription?
+  credits       CreditTransaction[]
+  jobs          Job[]
+}
+
+model AuthProvider {
+  id         String  @id @default(uuid())
+  userId     String
+  provider   String // google | password | apple
+  providerId String // google sub, or email for password
+  password   String? // only for password auth
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+model Subscription {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  tier      String // free | pro | studio
+  status    String // active | canceled | expired
+  renewsAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreditTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // grant | spend | refund | adjustment
+  action    String // ai_generate | stem_separate | bonus
+  credits   Float // +5, -1.5, etc.
+  costUsd   Float? // actual cost (for analytics)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Job {
+  id        String   @id @default(uuid())
+  userId    String?
+  type      String // ai_generate | export | stem_separate
+  status    String // pending | processing | completed | failed
+  payload   Json
+  result    Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([type])
+}
